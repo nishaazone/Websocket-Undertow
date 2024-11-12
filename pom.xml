@@ -1,0 +1,706 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.kizora</groupId>
+    <artifactId>solv-api</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <maven.compiler.source>16</maven.compiler.source>
+        <maven.compiler.target>16</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <sonar.qualitygate.wait>true</sonar.qualitygate.wait>
+        <java.version>16</java.version>
+        <open-html-pdf-core.version>1.0.6</open-html-pdf-core.version>
+        <open-html-pdfbox.version>1.0.6</open-html-pdfbox.version>
+        <pdfbox-tools.version>2.0.25</pdfbox-tools.version>
+        <lucene.version>9.11.0</lucene.version>
+
+        <undertow.version>1.4.16.Final</undertow.version>
+        <jersey.version>2.25.1</jersey.version>
+        <weld.version>3.0.0.Final</weld.version>
+        <el-api.version>3.0.0</el-api.version>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>gitlab-maven</id>
+            <url>https://gitlab.kizora.tech/api/v4/projects/103/packages/maven</url>
+        </repository>
+    </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>gitlab-maven</id>
+            <url>https://gitlab.kizora.tech/api/v4/projects/281/packages/maven</url>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <build>
+        <finalName>solv</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <source>16</source>
+                    <target>16</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+            <!-- Maven Shade Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>2.4.3</version>
+                <executions>
+                    <!-- Run shade goal on package phase -->
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <minimizeJar>false</minimizeJar>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <transformers>
+                                <!-- add Main-Class to manifest file -->
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.solv.main.EmbeddedHTTPServer</mainClass>
+                                    <manifestEntries>
+                                        <Build-time>${maven.build.timestamp}</Build-time>
+                                        <POM-version>${project.version}</POM-version>
+                                    </manifestEntries>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.2</version>
+            </plugin>
+            <plugin>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-maven-plugin-jakarta</artifactId>
+                <version>2.1.10</version>
+                <configuration>
+                    <outputFileName>openapi</outputFileName>
+                    <outputPath>${project.build.directory}/docs</outputPath>
+                    <outputFormat>JSONANDYAML</outputFormat>
+                    <resourcePackages>
+                        <package>com.solv.services</package>
+                    </resourcePackages>
+                    <prettyPrint>true</prettyPrint>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>resolve</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.7</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <!-- attached to Maven test phase -->
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.kizora</groupId>
+                <artifactId>db-tools</artifactId>
+                <version>1.0.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>db-drift</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <schemas>
+                        <schema>solv</schema>
+                    </schemas>
+                    <uriKey>database.jdbc.uri</uriKey>
+                    <usernameKey>database.jdbc.username</usernameKey>
+                    <passwordKey>database.jdbc.password</passwordKey>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.kizora</groupId>
+            <artifactId>xwkit</artifactId>
+            <version>1.0.27</version>
+        </dependency>
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-jaxrs2-jakarta</artifactId>
+            <version>2.2.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>itext7-core</artifactId>
+            <version>7.2.3</version>
+            <type>pom</type>
+        </dependency>
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>html2pdf</artifactId>
+            <version>4.0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-chrome-driver</artifactId>
+            <version>4.4.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>4.4.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.bonigarcia</groupId>
+            <artifactId>webdrivermanager</artifactId>
+            <version>5.3.0</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.deepl.api/deepl-java -->
+        <dependency>
+            <groupId>com.deepl.api</groupId>
+            <artifactId>deepl-java</artifactId>
+            <version>0.2.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox-tools</artifactId>
+            <version>${pdfbox-tools.version}</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>commons-logging</artifactId>
+                    <groupId>commons-logging</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.poi/poi -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>5.2.3</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml-schemas -->
+        <!--<dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml-schemas</artifactId>
+            <version>4.1.2</version>
+        </dependency>-->
+        <!-- https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.3</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.apache.lucene/lucene-core -->
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-core</artifactId>
+            <version>${lucene.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.lucene/lucene-analysis-common -->
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-analysis-common</artifactId>
+            <version>${lucene.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.lucene/lucene-queryparser -->
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-queryparser</artifactId>
+            <version>${lucene.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.lucene/lucene-suggest -->
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-suggest</artifactId>
+            <version>${lucene.version}</version>
+        </dependency>
+
+
+        <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-csv -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.8</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.fluentd</groupId>
+            <artifactId>fluent-logger</artifactId>
+            <version>0.3.4</version>
+        </dependency>
+
+        <!-- Weld -->
+        <dependency>
+            <groupId>org.jboss.weld.servlet</groupId>
+            <artifactId>weld-servlet-shaded</artifactId>
+            <version>${weld.version}</version>
+        </dependency>
+
+        <!-- Undertow -->
+        <dependency>
+            <groupId>io.undertow</groupId>
+            <artifactId>undertow-core</artifactId>
+            <version>${undertow.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.undertow</groupId>
+            <artifactId>undertow-servlet</artifactId>
+            <version>${undertow.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.undertow</groupId>
+            <artifactId>undertow-websockets-jsr</artifactId>
+            <version>${undertow.version}</version>
+        </dependency>
+
+        <!-- EL API -->
+        <dependency>
+            <groupId>javax.el</groupId>
+            <artifactId>javax.el-api</artifactId>
+            <version>${el-api.version}</version>
+        </dependency>
+
+    </dependencies>
+    <profiles>
+        <profile>
+            <id>dev</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>copy-config-test-dev</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.dev.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>copy-config-package-dev</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.dev.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>qa</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-antrun-plugin -->
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>copy-config-test-qa</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.qa.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>copy-config-package-qa</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.qa.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>prod</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>copy-config-test-prod</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.prod.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>copy-config-package-prod</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.prod.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>preprod</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>copy-config-test-preprod</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.preprod.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>copy-config-package-preprod</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.preprod.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>prod-new</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>copy-config-test-prod</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.prod-new.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>copy-config-package-prod</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.prod-new.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>preprod-new</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>copy-config-test-preprod</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.preprod-new.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>copy-config-package-preprod</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.preprod-new.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>dev-sandbox</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>copy-config-test-prod</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.dev-sandbox.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>copy-config-package-prod</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.dev-sandbox.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>prod-sandbox</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>copy-config-test-prod</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.prod-sandbox.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>copy-config-package-prod</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.build.outputDirectory}/application.properties"/>
+                                        <copy file="src/main/resources/application.prod-sandbox.properties"
+                                              tofile="${project.build.outputDirectory}/application.properties"/>
+                                        <delete file="${project.build.outputDirectory}/log4j.properties"/>
+                                        <copy file="src/main/resources/log4j.deploy.properties"
+                                              tofile="${project.build.outputDirectory}/log4j.properties"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
